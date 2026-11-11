@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>MineKey</AssemblyName>
+    <RootNamespace>MineKey</RootNamespace>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\icon.ico</ApplicationIcon>
+    <Version>1.3.0</Version>
+    <Product>MineKey</Product>
+    <AssemblyTitle>MineKey</AssemblyTitle>
+    <!-- WebView2 包里带的 WPF 程序集与 WinForms 混用时会有这个引用警告，无害 -->
+    <MSBuildWarningsAsMessages>MSB3277</MSBuildWarningsAsMessages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
+  </ItemGroup>
+
+  <!-- UI 只有一份源码：直接引用 ../configurator 下的三个文件 -->
+  <ItemGroup>
+    <Content Include="..\configurator\index.html" Link="www\index.html" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\configurator\styles.css" Link="www\styles.css" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\configurator\app.js" Link="www\app.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\configurator\fonts\zpix.ttf" Link="www\fonts\zpix.ttf" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,31 @@
+{
+  "vid": "0x1209",
+  "pid": "0x0001",
+  "actions": {
+    "0": {
+      "name": "打开 B 站",
+      "type": "url",
+      "target": "https://www.bilibili.com"
+    },
+    "1": {
+      "name": "VS Code",
+      "type": "app",
+      "target": "D:\\Microsoft VS Code\\Code.exe"
+    },
+    "2": {
+      "name": "下载文件夹",
+      "type": "folder",
+      "target": "C:\\Users\\Big_Fish\\Downloads"
+    },
+    "3": {
+      "name": "锁屏",
+      "type": "cmd",
+      "target": ""
+    },
+    "4": {
+      "name": "WCHI",
+      "type": "app",
+      "target": "C:\\Users\\Big_Fish\\Desktop\\WCHISPStudio.lnk"
+    }
+  }
+}

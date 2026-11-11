@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MineKey</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="bg-layer"></div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo-block">
+        <i></i><i></i><i></i>
+        <b></b>
+      </div>
+      <div class="brand-text">
+        <h1>MINEKEY</h1>
+        <p>11-KEY + EC11 · CH552 · v1.3</p>
+      </div>
+    </div>
+
+    <div class="conn">
+      <div class="status" id="statusChip" data-state="offline">
+        <span class="dot"></span>
+        <span id="statusText">未连接</span>
+      </div>
+      <button class="btn" id="btnDemo">演示模式</button>
+      <button class="btn btn-primary" id="btnConnect">连接设备</button>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- ================= 左：键盘视图 ================= -->
+    <section class="panel stage">
+      <div class="panel-head">
+        <h2>键位</h2>
+        <div class="head-tools">
+          <span class="hint">点键位分配 · 拖旋钮模拟旋转</span>
+          <label class="switch">
+            <input type="checkbox" id="testMode">
+            <span>测试</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="board-wrap">
+        <div class="board" id="board"></div>
+      </div>
+
+      <div class="knob-card">
+        <div class="knob-row"><span class="k-label">逆时针</span><b class="k-value" id="knobCCW">—</b></div>
+        <div class="knob-row"><span class="k-label">顺时针</span><b class="k-value" id="knobCW">—</b></div>
+        <div class="knob-row"><span class="k-label">按下</span><b class="k-value" id="knobPush">—</b></div>
+        <div class="knob-row cnt"><span class="k-label">计数</span><b class="k-value" id="knobCount">0</b></div>
+      </div>
+    </section>
+
+    <!-- ================= 右：属性 ================= -->
+    <aside class="panel side">
+      <nav class="tabs" id="tabs">
+        <button class="tab active" data-tab="key">按键</button>
+        <button class="tab" data-tab="act">动作</button>
+        <button class="tab" data-tab="led">灯光</button>
+        <button class="tab" data-tab="dev">设备</button>
+      </nav>
+
+      <!-- ---- 按键 / 旋钮（同一个编辑器，选谁编辑谁） ---- -->
+      <div class="tabpane active" data-pane="key">
+        <div class="sel-head">
+          <div class="sel-title" id="selTitle">未选择</div>
+          <div class="sel-sub" id="selSub">在左边点一个键</div>
+        </div>
+
+        <!-- 普通按键 -->
+        <div class="pane-body" id="keyEditor">
+          <label class="field">
+            <span>功能类型</span>
+            <select id="keyType">
+              <option value="0">禁用</option>
+              <option value="1">键盘按键</option>
+              <option value="2">多媒体</option>
+              <option value="8">鼠标与光标</option>
+              <option value="4">灯效设置</option>
+              <option value="5">组合键</option>
+              <option value="6">主机动作（开网页/软件）</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>具体值</span>
+            <select id="keyValue"></select>
+          </label>
+
+          <div class="field" id="comboField" hidden>
+            <span>修饰键</span>
+            <div class="chip-row" id="comboMods">
+              <label class="chip chk"><input type="checkbox" value="1"><span>Ctrl</span></label>
+              <label class="chip chk"><input type="checkbox" value="2"><span>Shift</span></label>
+              <label class="chip chk"><input type="checkbox" value="4"><span>Alt</span></label>
+              <label class="chip chk"><input type="checkbox" value="8"><span>Win</span></label>
+            </div>
+            <p class="note tiny">勾上的修饰键 + 上面选的具体值 = 同时按下。例：Ctrl ✓ + C = Ctrl+C</p>
+          </div>
+
+          <div class="side-actions">
+            <button class="btn btn-primary" id="btnAssign">写入此键</button>
+            <button class="btn btn-ghost" id="btnClearKey">清空</button>
+          </div>
+
+          <details class="adv">
+            <summary>高级 · 原始功能码</summary>
+            <div class="row">
+              <input type="text" id="keyRaw" placeholder="0x0000" spellcheck="false">
+              <button class="btn btn-sm" id="btnApplyRaw">应用</button>
+            </div>
+          </details>
+        </div>
+
+        <!-- 旋钮：点左边的旋钮就切到这一组 -->
+        <div class="pane-body" id="knobEditor" hidden>
+          <label class="field"><span>逆时针 →</span><select id="encCCW"></select></label>
+          <label class="field"><span>顺时针 →</span><select id="encCW"></select></label>
+          <label class="field"><span>按下 →</span><select id="encPush"></select></label>
+          <label class="field">
+            <span>方向</span>
+            <select id="encInvert">
+              <option value="0">正常（顺时针 = CW）</option>
+              <option value="1">反转（顺时针 = CCW）</option>
+            </select>
+          </label>
+          <div class="side-actions">
+            <button class="btn btn-primary" id="btnEncApply">写入旋钮</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- 主机动作 ---- -->
+      <div class="tabpane" data-pane="act">
+        <div class="pick-bar">
+          <div class="sw" id="actSw"></div>
+          <div class="txt">
+            <b id="actTitle">未选择</b>
+            <span id="actSub">在左边点一个键</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>编辑槽位</span>
+          <select id="actSlot"></select>
+        </label>
+
+        <label class="field">
+          <span>名称</span>
+          <input type="text" id="actName" spellcheck="false" placeholder="如：打开 B 站">
+        </label>
+
+        <label class="field">
+          <span>类型</span>
+          <select id="actType"></select>
+        </label>
+
+        <div class="field">
+          <span>目标</span>
+          <div class="row">
+            <input type="text" id="actTarget" spellcheck="false">
+            <button class="btn btn-sm" id="btnActPick" title="在文件管理器里选择">浏览</button>
+          </div>
+        </div>
+
+        <div class="side-actions">
+          <button class="btn" id="btnActTest">试跑此槽位</button>
+          <button class="btn btn-ghost" id="btnActExport">导出 actions.json</button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="presets-head">槽位占用</div>
+        <div class="slot-map" id="slotMap"></div>
+
+        <p class="note tiny">
+          绑定在「按键」页：把类型设为<b>主机动作</b>再选槽位。键只发编号，
+          真正执行在 <code>tools/host-agent/agent.py</code>。
+        </p>
+      </div>
+
+      <!-- ---- 灯光 ---- -->
+      <div class="tabpane" data-pane="led">
+        <label class="field">
+          <span>灯效</span>
+          <select id="ledMode">
+            <option value="0">常亮</option>
+            <option value="1">呼吸</option>
+            <option value="2">彩虹</option>
+            <option value="3">按压缩放</option>
+            <option value="4">关闭</option>
+            <option value="5">彩虹呼吸</option>
+            <option value="6">单点扫描</option>
+            <option value="7">星光闪烁</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>亮度 <b id="ledBriVal">40%</b></span>
+          <input type="range" id="ledBrightness" min="0" max="100" value="40">
+        </label>
+
+        <label class="field">
+          <span>速度 <b id="ledSpdVal">50%</b></span>
+          <input type="range" id="ledSpeed" min="0" max="100" value="50">
+        </label>
+
+        <div class="field">
+          <span>主色</span>
+          <div class="row">
+            <button class="swatch" id="ledColor" data-sw="master" title="点开调色板"></button>
+            <input type="text" id="ledColorHex" value="#F77634" spellcheck="false" maxlength="7">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="pick-bar">
+          <div class="sw" id="ledSw"></div>
+          <div class="txt">
+            <b id="ledKeyName">未选择</b>
+            <span id="ledKeySub">在左边点一个键</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="swatch" id="ledKeyColor" data-sw="key" title="点开调色板"></button>
+          <input type="text" id="ledKeyHex" value="#F77634" spellcheck="false" maxlength="7">
+        </div>
+
+        <div class="btn-grid">
+          <button class="btn btn-sm" id="btnKeyUseMaster">此键用主色</button>
+          <button class="btn btn-sm btn-ghost" id="btnKeyClear">熄灭此键</button>
+          <button class="btn btn-sm" id="btnFillAll">全填主色</button>
+          <button class="btn btn-sm btn-ghost" id="btnRainbowFill">彩虹铺满</button>
+        </div>
+
+        <div class="power">
+          <div class="power-head">
+            <span>电流估算</span>
+            <strong id="powerVal">—</strong>
+          </div>
+          <div class="power-bar"><i id="powerBar"></i></div>
+          <p class="note tiny" id="powerNote">上限 400 mA（USB 端口 500 mA 留余量）</p>
+        </div>
+
+        <div class="side-actions">
+          <button class="btn btn-primary" id="btnLedApply">下发光效</button>
+        </div>
+
+        <!-- 自绘调色板：WebView2 不实现 <input type=color> 的系统对话框，
+             所以这里自己画一个 HSV 面板 -->
+        <div class="cp" id="cpPop" hidden>
+          <div class="cp-head">
+            <div class="cp-prev" id="cpPrev"></div>
+            <input type="text" id="cpHex" spellcheck="false" maxlength="7">
+          </div>
+          <label class="cp-row"><span>色相</span><input type="range" id="cpH" min="0" max="360"></label>
+          <label class="cp-row"><span>饱和</span><input type="range" id="cpS" min="0" max="100"></label>
+          <label class="cp-row"><span>明度</span><input type="range" id="cpV" min="0" max="100"></label>
+          <div class="cp-presets" id="cpPresets"></div>
+          <div class="cp-actions">
+            <button class="btn btn-sm btn-ghost" id="cpCancel">取消</button>
+            <button class="btn btn-sm btn-primary" id="cpOk">确定</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- 设备 ---- -->
+      <div class="tabpane" data-pane="dev">
+        <div class="devinfo">
+          <div class="dv"><span>设备</span><strong id="dvName">—</strong></div>
+          <div class="dv"><span>VID:PID</span><strong id="dvVid">—</strong></div>
+          <div class="dv"><span>固件</span><strong id="dvFw">—</strong></div>
+          <div class="dv"><span>协议</span><strong id="dvProto">—</strong></div>
+          <div class="dv"><span>矩阵</span><strong id="dvMatrix">—</strong></div>
+          <div class="dv"><span>灯珠</span><strong id="dvLed">—</strong></div>
+        </div>
+
+        <div class="btn-col">
+          <button class="btn" id="btnSave">保存到 Flash</button>
+          <button class="btn btn-ghost" id="btnReset">恢复出厂</button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="btn-col">
+          <button class="btn" id="btnExport">导出配置 .json</button>
+          <button class="btn" id="btnExportC">导出固件默认表 .h</button>
+          <label class="btn btn-ghost file-btn">
+            导入配置
+            <input type="file" id="fileImport" accept=".json" hidden>
+          </label>
+        </div>
+
+        <p class="note tiny">协议见 <code>docs/02-软件架构与协议.md</code></p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="logbar">
+    <div class="log-head">
+      <span>日志</span>
+      <button class="btn btn-tiny btn-ghost" id="btnClearLog">清空</button>
+    </div>
+    <div class="log" id="log"></div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

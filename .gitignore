@@ -1,0 +1,37 @@
+# ---------- 构建产物（可由源码重新生成，不入库） ----------
+firmware/build/
+firmware/build_diag/
+firmware/*.asm
+firmware/*.lst
+firmware/*.map
+firmware/*.mem
+firmware/*.rel
+firmware/*.rst
+firmware/*.sym
+firmware/*.lk
+firmware/*.ihx
+firmware/build_log.txt
+firmware/build_noled.log
+
+tools/configurator-win/bin/
+tools/configurator-win/obj/
+tools/ispprog/bin/
+tools/ispprog/obj/
+
+# ---------- Python ----------
+__pycache__/
+*.pyc
+*.pyo
+
+# ---------- 本地产物 / 日志 ----------
+*.log
+*.tmp
+tools/t.bin
+
+# ---------- 编辑器 / 系统 ----------
+.workbuddy/
+.vs/
+.vscode/
+Thumbs.db
+desktop.ini
+.DS_Store
