@@ -33,9 +33,14 @@
 #define NUM_LEDS      11
 
 /* 鼠标移动（功能类型 0x07）：每次发 MOVE_STEP 像素，按住每 MOVE_PERIOD_MS 发一次
-   3px/20ms = 150px/s，按住约 2 秒能横跨 1080p 屏幕，先快后慢手感靠改这两个数 */
-#define MOVE_STEP        3
+   低字节编码 = (档位 << 4) | 方向，像素 = MOVE_STEP << 档位
+   即 6 / 12 / 24 px 每 20ms（300 / 600 / 1200 px/s），老配置 0x0701 落在档位 0。
+   在这之上还有"连续点击提速"：快速双击 ×2、三击 ×3（见 mouse_move_tick） */
+#define MOVE_STEP        6
 #define MOVE_PERIOD_MS   20
+#define MOVE_LEVEL_MAX   2
+#define MOVE_TAP_WINDOW  20            /* 松手后 20×20ms=400ms 内再按算连击 */
+#define MOVE_STEP_MAX    60            /* 单包位移上限，不能越过有符号字节 */
 
 /* 灯珠总电流上限（sum = R+G+B 之和）：400mA ≈ 5200
    估算模型：11mA + 19mA × sum/255；配置器侧用同一阈值，超了不允许下发 */

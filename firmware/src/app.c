@@ -41,6 +41,11 @@ static __xdata uint8_t host_action_pending = HOST_ACTION_NONE;
 static __xdata uint16_t active_sw[NUM_KEYS];   /* 每个轴当前生效的功能码 */
 static __xdata uint16_t active_enc_push;
 
+/* 光标移动的连击提速状态（全局共享：一般只会按一个方向键） */
+static __xdata uint8_t  move_edge;             /* 有 T_MOVE 键新按下（按下沿） */
+static __xdata uint8_t  move_taps;             /* 连击次数 1..3 → 倍率 */
+static __xdata uint8_t  move_gap;              /* 松手后经过的 20ms 拍数 */
+
 static __xdata uint8_t last_kbd[8];
 static __xdata uint16_t last_media;
 static __xdata uint8_t last_mouse[4];
@@ -398,35 +403,71 @@ static void apply_code(uint16_t code, uint8_t *mods, uint8_t *keys, uint8_t *n,
 }
 
 /* 鼠标相对移动：按住期间每 MOVE_PERIOD_MS 发一包 [buttons, dx, dy, wheel]。
-   X/Y 在 HID 里是有符号字节，往左/上是负数，直接按补码写进 uint8_t 即可。 */
+   X/Y 在 HID 里是有符号字节，往左/上是负数，直接按补码写进 uint8_t 即可。
+
+   速度 = MOVE_STEP << 档位，再乘连击倍率：
+     单击后按住    ×1（默认手感）
+     快速双击后按住 ×2
+     快速三击后按住 ×3
+   松手超过 MOVE_TAP_WINDOW 拍（400ms）连击计数清零，回到默认。 */
 static void mouse_move_tick(void)
 {
     static uint8_t div_move;
     uint8_t i, dx = 0, dy = 0, buf[5];
     uint16_t code;
+    uint8_t step;
+    uint8_t held = 0;
 
     if (++div_move < MOVE_PERIOD_MS) return;
     div_move = 0;
 
+    /* ---- 连击判定：这一拍里只要有一个移动键刚按下就算一次"点" ---- */
+    if (move_edge) {
+        move_edge = 0;
+        if (move_gap <= MOVE_TAP_WINDOW) {
+            if (move_taps < 3) move_taps++;
+        } else {
+            move_taps = 1;
+        }
+        move_gap = 0;
+    }
+
     for (i = 0; i < NUM_KEYS; i++) {
+        uint8_t v;
         code = active_sw[i];
         if (code_type(code) != T_MOVE) continue;
-        switch ((uint8_t)(code & 0xFF)) {
-        case 1: dy = (uint8_t)(dy - MOVE_STEP); break;   /* 上 */
-        case 2: dy = (uint8_t)(dy + MOVE_STEP); break;   /* 下 */
-        case 3: dx = (uint8_t)(dx - MOVE_STEP); break;   /* 左 */
-        case 4: dx = (uint8_t)(dx + MOVE_STEP); break;   /* 右 */
+        held = 1;
+        v = (uint8_t)(code & 0xFF);
+        step = (uint8_t)(MOVE_STEP << ((v >> 4) & 0x03));
+        step = (uint8_t)(step * (move_taps ? move_taps : 1));
+        if (step > MOVE_STEP_MAX) step = MOVE_STEP_MAX;
+        switch ((uint8_t)(v & 0x0F)) {
+        case 1: dy = (uint8_t)(dy - step); break;   /* 上 */
+        case 2: dy = (uint8_t)(dy + step); break;   /* 下 */
+        case 3: dx = (uint8_t)(dx - step); break;   /* 左 */
+        case 4: dx = (uint8_t)(dx + step); break;   /* 右 */
         default: break;
         }
     }
     if (code_type(active_enc_push) == T_MOVE) {
-        switch ((uint8_t)(active_enc_push & 0xFF)) {
-        case 1: dy = (uint8_t)(dy - MOVE_STEP); break;
-        case 2: dy = (uint8_t)(dy + MOVE_STEP); break;
-        case 3: dx = (uint8_t)(dx - MOVE_STEP); break;
-        case 4: dx = (uint8_t)(dx + MOVE_STEP); break;
+        uint8_t v = (uint8_t)(active_enc_push & 0xFF);
+        held = 1;
+        step = (uint8_t)(MOVE_STEP << ((v >> 4) & 0x03));
+        step = (uint8_t)(step * (move_taps ? move_taps : 1));
+        if (step > MOVE_STEP_MAX) step = MOVE_STEP_MAX;
+        switch ((uint8_t)(v & 0x0F)) {
+        case 1: dy = (uint8_t)(dy - step); break;
+        case 2: dy = (uint8_t)(dy + step); break;
+        case 3: dx = (uint8_t)(dx - step); break;
+        case 4: dx = (uint8_t)(dx + step); break;
         default: break;
         }
+    }
+
+    /* 没按着移动键就累计"松手时间"，超过窗口连击清零 */
+    if (!held) {
+        if (move_gap < 255) move_gap++;
+        if (move_gap > MOVE_TAP_WINDOW) move_taps = 0;
     }
 
     if (dx == 0 && dy == 0) return;
@@ -566,6 +607,8 @@ static void keys_update(void)
                     active_sw[k] = code;
                 } else if (code != 0) {
                     active_sw[k] = code;
+                    /* 移动键的按下沿交给 mouse_move_tick 做连击判定 */
+                    if (code_type(code) == T_MOVE) move_edge = 1;
                 }
             }
         } else {

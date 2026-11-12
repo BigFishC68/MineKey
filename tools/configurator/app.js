@@ -92,12 +92,11 @@ const KEYS = [
   [0x46, 'PrintScreen'], [0x47, 'ScrollLock'], [0x48, 'Pause'],
   [0x49, 'Insert'], [0x4A, 'Home'], [0x4B, 'PgUp'], [0x4C, 'Delete'], [0x4D, 'End'], [0x4E, 'PgDn'],
   [0x4F, '→ 右'], [0x50, '← 左'], [0x51, '↓ 下'], [0x52, '↑ 上'],
+  /* 小键盘只留 NumLock 和四则运算符：Num 0-9 / Num Enter / Num . 在主键盘区已经有
+     发出去完全一样的键，留着只会让人选错（0x58..0x63 已移除） */
   [0x53, 'NumLock'], [0x54, 'Num /'], [0x55, 'Num *'], [0x56, 'Num -'], [0x57, 'Num +'],
-  [0x58, 'Num Enter'], [0x59, 'Num 1'], [0x5A, 'Num 2'], [0x5B, 'Num 3'], [0x5C, 'Num 4'],
-  [0x5D, 'Num 5'], [0x5E, 'Num 6'], [0x5F, 'Num 7'], [0x60, 'Num 8'], [0x61, 'Num 9'],
-  [0x62, 'Num 0'], [0x63, 'Num .'],
-  [0xE0, '左 Ctrl'], [0xE1, '左 Shift'], [0xE2, '左 Alt'], [0xE3, '左 Win'],
-  [0xE4, '右 Ctrl'], [0xE5, '右 Shift'], [0xE6, '右 Alt'], [0xE7, '右 Win']
+  /* 左右修饰键只保留一套（0xE4 右Ctrl / 0xE5 右Shift / 0xE6 右Alt / 0xE7 右Win 已移除） */
+  [0xE0, 'Ctrl'], [0xE1, 'Shift'], [0xE2, 'Alt'], [0xE3, 'Win']
 ];
 
 /* 多媒体码 = HID Consumer Page(0x0C) 的真实 usage。
@@ -115,8 +114,19 @@ const MOUSE = [
   [4, '滚轮上滚'], [5, '滚轮下滚']
 ];
 
-/* 光标相对移动：按住期间每 20ms 发一次，每次 3px（固件 board.h 的 MOVE_STEP） */
-const MOVES = [[1, '光标 ↑'], [2, '光标 ↓'], [3, '光标 ←'], [4, '光标 →']];
+/* 光标相对移动：低字节 = (档位 << 4) | 方向
+ *   档位 0/1/2 → 6 / 12 / 24 px 每 20ms（300 / 600 / 1200 px/s）
+ *   再叠加快捷点击倍率：快速双击 ×2、三击 ×3（固件 mouse_move_tick 里做）
+ *   老的 0x0701..0x0704 就是档位 0，向后兼容。
+ */
+const MOVE_DIRS = [[1, '↑'], [2, '↓'], [3, '←'], [4, '→']];
+const MOVE_LEVELS = [[0, ''], [1, ' · 快'], [2, ' · 极快']];
+const MOVES = [];
+MOVE_LEVELS.forEach(([lv, suffix]) => {
+  MOVE_DIRS.forEach(([dir, arrow]) => {
+    MOVES.push([(lv << 4) | dir, '光标 ' + arrow + suffix]);
+  });
+});
 
 /* 鼠标与光标合并成一组：类型下拉里只留一个"鼠标与光标"，
    值列表里按钮/滚轮（0x03xx）和相对移动（0x07xx）混排。
@@ -669,6 +679,14 @@ function fillValueSelect(type, current) {
     o.textContent = label;
     sel.appendChild(o);
   });
+  /* 当前码不在列表里时补一条兜底项。不然 sel.value 会静默落到第一项，
+     一按「写入」就把键悄悄改成 'A' —— 用了已移除的 Num9 / 右Ctrl 就会踩到 */
+  if (current && !list.some(([v]) => v === current)) {
+    const o = document.createElement('option');
+    o.value = current;
+    o.textContent = `0x${current.toString(16).toUpperCase().padStart(4, '0')}（已弃用 / 未列出）`;
+    sel.appendChild(o);
+  }
   sel.value = current;
   if (!sel.value && list.length) sel.value = list[0][0];
 }
