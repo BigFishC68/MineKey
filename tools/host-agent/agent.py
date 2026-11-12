@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -54,11 +55,18 @@ DEFAULT_CONFIG = {
 # 配置
 # --------------------------------------------------------------------------
 def load_config(path):
+    """读配置。没有 actions.json 就从 actions.example.json 拷一份，直接能跑。"""
     if not os.path.exists(path):
-        print(f"[!] 找不到配置文件 {path}，已生成模板")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
-        return None
+        example = os.path.join(os.path.dirname(os.path.abspath(path)), "actions.example.json")
+        if os.path.exists(example):
+            shutil.copyfile(example, path)
+            print(f"[i] 没有 {os.path.basename(path)}，已从 actions.example.json 复制一份")
+            print("    改成自己的动作后重跑即可")
+        else:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(DEFAULT_CONFIG, f, ensure_ascii=False, indent=2)
+            print(f"[!] 找不到配置文件，已生成空模板 {path}")
+            return None
 
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
@@ -279,13 +287,69 @@ def run_forever(cfg, dry_run, cfg_path=None):
 
 
 # --------------------------------------------------------------------------
+class _Tee:
+    """把输出同时写到文件和原 stdout。
+
+    pythonw.exe（无控制台）下 sys.stdout 是 None，直接 print() 会抛
+    AttributeError 把进程干掉 —— 开机自启必须走这条路，所以这里统一接住。
+    """
+
+    def __init__(self, path):
+        if os.path.exists(path) and os.path.getsize(path) > 1024 * 1024:
+            os.remove(path)                       # 超过 1MB 就重来，别无限长
+        self.f = open(path, "a", encoding="utf-8", errors="replace", buffering=1)
+
+    def write(self, s):
+        try:
+            self.f.write(s)
+        except Exception:
+            pass
+        try:
+            if sys.__stdout__:
+                sys.__stdout__.write(s)
+        except Exception:
+            pass
+
+    def flush(self):
+        try:
+            self.f.flush()
+        except Exception:
+            pass
+
+
+def acquire_single_instance():
+    """同名互斥体：防止开机自启 + 手动启动同时跑两份。
+
+    两份同时跑会各自执行一次动作（一次按键开两个窗口），必须拦住。
+    """
+    if sys.platform != "win32":
+        return True
+    try:
+        import ctypes
+        handle = ctypes.windll.kernel32.CreateMutexW(None, False, "Global\\MineKeyHostAgent")
+        return ctypes.windll.kernel32.GetLastError() != 183   # ERROR_ALREADY_EXISTS
+    except Exception:
+        return True
+
+
 def main():
     ap = argparse.ArgumentParser(description="KeyForge 主机动作代理")
     ap.add_argument("-c", "--config", default=os.path.join(os.path.dirname(__file__), "actions.json"))
+    ap.add_argument("-l", "--log", help="日志同时写入文件（配合 pythonw 后台运行）")
     ap.add_argument("--list", action="store_true", help="列出 HID 设备")
     ap.add_argument("--dry-run", action="store_true", help="只打印不执行")
     ap.add_argument("--demo", type=int, metavar="N", help="手动触发 N 号动作")
     args = ap.parse_args()
+
+    if args.log:
+        tee = _Tee(args.log)
+        sys.stdout = tee
+        sys.stderr = tee
+        print(f"[i] 日志：{os.path.abspath(args.log)}")
+
+    if not acquire_single_instance():
+        print("[i] 已有一个代理在运行（互斥体占用），本次退出")
+        return 0
 
     if args.list:
         list_devices()

@@ -8,24 +8,24 @@
       "target": "https://www.bilibili.com"
     },
     "1": {
-      "name": "VS Code",
+      "name": "记事本",
       "type": "app",
-      "target": "D:\\Microsoft VS Code\\Code.exe"
+      "target": "C:\\Windows\\System32\\notepad.exe"
     },
     "2": {
-      "name": "下载文件夹",
+      "name": "资源管理器",
       "type": "folder",
-      "target": "C:\\Users\\Big_Fish\\Downloads"
+      "target": "C:\\Windows"
     },
     "3": {
-      "name": "锁屏",
+      "name": "计算器",
       "type": "cmd",
-      "target": ""
+      "target": "calc.exe"
     },
     "4": {
-      "name": "WCHI",
+      "name": "命令提示符",
       "type": "app",
-      "target": "C:\\Users\\Big_Fish\\Desktop\\WCHISPStudio.lnk"
+      "target": "C:\\Windows\\System32\\cmd.exe"
     }
   }
 }

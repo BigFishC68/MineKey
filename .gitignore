@@ -35,3 +35,7 @@ tools/t.bin
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# 主机动作表：每台机器自己一份，仓库里只放示例
+tools/host-agent/actions.json
+tools/host-agent/agent.log

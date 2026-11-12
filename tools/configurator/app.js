@@ -451,9 +451,27 @@ class Device {
     return { info, keys, enc, led };
   }
 
+  /* ---- 自动落盘 ----
+     每次写配置都排队一次 SAVE，700ms 内多次改动只写一次（避免拖滑杆时狂刷 DataFlash）。
+     以前只有「写入旋钮」和「保存」按钮会存盘，改键位 / 改灯只写 RAM，
+     拔电就回默认值 —— 用户看到的现象是"设置记不住"。 */
+  _scheduleSave() {
+    if (this.demo) return;
+    clearTimeout(this._saveTimer);
+    this._saveTimer = setTimeout(async () => {
+      try {
+        await this.save();
+        log('已自动保存到 DataFlash', 'ok');
+      } catch (e) {
+        log('自动保存失败：' + e.message, 'err');
+      }
+    }, 700);
+  }
+
   async writeKey(idx, code) {
     if (this.demo) { S.keys[idx] = code; return; }
     await this._cmd([CMD.SET_KEY, idx, code & 0xFF, (code >> 8) & 0xFF]);
+    this._scheduleSave();
   }
 
   async writeEnc(enc) {
@@ -462,6 +480,7 @@ class Device {
       enc.cw & 0xFF, (enc.cw >> 8) & 0xFF,
       enc.ccw & 0xFF, (enc.ccw >> 8) & 0xFF,
       enc.push & 0xFF, (enc.push >> 8) & 0xFF, enc.invert ? 1 : 0]);
+    this._scheduleSave();
   }
 
   async writeLed(led) {
@@ -472,6 +491,7 @@ class Device {
       p.push(c.r, c.g, c.b);
     }
     await this._cmd(p);
+    this._scheduleSave();
   }
 
   async save() {
@@ -1199,7 +1219,7 @@ function bind() {
     if (!S.online) { toast('设备未连接，先连上再写入', true); return; }
     try {
       await dev.writeEnc(enc);
-      await dev.save();                     /* 必须落盘：原来只写 RAM，拔电就回旧值 */
+      /* 落盘由 writeEnc/writeKey 内部的 _scheduleSave 统一处理 */
       Object.assign(S.enc, enc);
       renderBoard(); renderSidebar();
       log(`旋钮已写入并保存：CW=${codeToLabel(enc.cw)} CCW=${codeToLabel(enc.ccw)} `
@@ -1406,7 +1426,7 @@ async function writeCurrent(code) {
     if (S.selIsKnob) {
       S.enc.push = code;
       await dev.writeEnc(S.enc);
-      await dev.save();            /* 旋钮按下也要落盘，否则拔电回旧值 */
+      /* 落盘由 writeEnc/writeKey 内部的 _scheduleSave 统一处理 */
     } else {
       await dev.writeKey(idx, code);
       S.keys[idx] = code;

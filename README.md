@@ -72,6 +72,11 @@ Keyboard/
 │   ├── configurator/           配置器前端（纯 HTML/JS，浏览器可直接打开）
 │   ├── configurator-win/       桌面版外壳（C# + WebView2，HID 走原生 API）
 │   ├── host-agent/             主机动作代理（Python + hidapi）
+│   │   ├── agent.py            收 Report ID 5 → 执行动作
+│   │   ├── actions.example.json 动作表模板（首次运行自动复制成 actions.json）
+│   │   ├── start_agent.bat     前台运行（有窗口，方便看日志）
+│   │   ├── install_autostart.bat   装成开机自启（无窗口后台）
+│   │   └── uninstall_autostart.bat 卸载自启并停掉后台进程
 │   ├── ispprog/                命令行烧录器源码（需自备 WCH 官方 DLL，见其 README）
 │   ├── flash_cli.bat           安全烧录入口（绝不修改配置位）
 │   ├── set_keymap.py           命令行改键位（写 DataFlash，不重烧）
@@ -119,12 +124,20 @@ Keyboard/
 ```bash
 cd tools/host-agent
 pip install hidapi
-python agent.py            # 或双击 start_agent.bat
+python agent.py            # 或双击 start_agent.bat（有窗口，方便看日志）
 ```
+
+首次运行会自动从 `actions.example.json` 复制一份 `actions.json`（**这份是你自己的，不会被提交**），
+改成自己的动作后重跑即可。
+
+**想一劳永逸**：双击 `install_autostart.bat` —— 它会在「启动」文件夹里建一个快捷方式，
+用 `pythonw.exe` 后台运行（没有黑窗口），登录即自动启动，日志写在 `agent.log`。
+撤销就双击 `uninstall_autostart.bat`。
 
 然后在配置器「动作」页填槽位 → 按键页把某个键设成「主机动作 + 槽位号」。
 
 **代理窗口关掉 = 主机动作失效**，这是设计如此：键盘只发动作编号，执行必须靠电脑上的进程。
+（程序内有互斥体，开机自启和手动启动同时存在时只会留一份，不会一次按键执行两遍。）
 
 ---
 
@@ -175,8 +188,10 @@ Feature 负载是 **63 字节**（+ 报告 ID = 64，正好卡在 EP0 单包上�
    （表现为"文件夹能用、开网页没反应"）。已改用 `0xFF`。
 3. **动作 / 主机动作必须占住 `active_sw`**
    否则"按下沿"判定失效，按住不放会每 1 ms 触发一次（主机动作狂发）。
-4. **`writeEnc()` 写完必须 `SAVE`**
-   只写 RAM 的话界面显示成功、拔电回旧值 —— 看起来像"根本改不了"。
+4. **写完配置必须 `SAVE` 才会断电保留**
+   只写 RAM 的话界面显示成功、拔电回旧值 —— 看起来像"设置记不住"。
+   配置器已改成**写完自动存盘**（700 ms 去抖，拖滑杆不会狂刷 DataFlash），
+   手写工具时记得自己补一次 `CMD_SAVE`。
 5. **动作表有两份**：配置器存 localStorage，代理读 `actions.json`。
    桌面版改完会自动写 json（`writeActions` 桥命令），网页版仍需手动导出。
 
