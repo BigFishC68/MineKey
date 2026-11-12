@@ -33,10 +33,10 @@
 #define NUM_LEDS      11
 
 /* 鼠标移动（功能类型 0x07）：低字节 = (档位 << 4) | 方向
-   像素 = MOVE_STEP + 档位 × MOVE_STEP_INC，档位 0..15 → 6..36 px 每 20ms
-   （300..1800 px/s）；老配置 0x0701 落在档位 0。
+   像素 = MOVE_STEP + 档位 × MOVE_STEP_INC，档位 0..15 → 3..33 px 每 20ms
+   （150..1650 px/s）；老配置 0x0701 落在档位 0。
    在档位之上还有"连续点击提速"：快速双击 ×2、三击 ×3（见 mouse_move_tick） */
-#define MOVE_STEP        6
+#define MOVE_STEP        3
 #define MOVE_STEP_INC    2
 #define MOVE_PERIOD_MS   20
 #define MOVE_TAP_WINDOW  20            /* 松手后 20×20ms=400ms 内再按算连击 */

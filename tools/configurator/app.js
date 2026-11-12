@@ -116,12 +116,12 @@ const MOUSE = [
 ];
 
 /* 光标相对移动：这里只列方向，速度由「灵敏度」滑杆调。
- * 低字节 = (档位 << 4) | 方向，像素 = 6 + 档位×2（6..36 px 每 20ms，300..1800 px/s）
+ * 低字节 = (档位 << 4) | 方向，像素 = 3 + 档位×2（3..33 px 每 20ms，150..1650 px/s）
  * 老的 0x0701..0x0704 就是档位 0，向后兼容。
  */
 const MOVES = [[1, '光标 ↑'], [2, '光标 ↓'], [3, '光标 ←'], [4, '光标 →']];
 
-const MOVE_PX_MIN = 6, MOVE_PX_INC = 2;
+const MOVE_PX_MIN = 3, MOVE_PX_INC = 2;
 const movePx = lv => MOVE_PX_MIN + lv * MOVE_PX_INC;
 const moveLv = code => (code >> 4) & 0x0F;
 const moveLabel = lv => `${movePx(lv)} px/20ms · ${movePx(lv) * 50} px/s`;
