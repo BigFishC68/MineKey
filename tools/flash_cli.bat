@@ -9,8 +9,14 @@ rem config bits / code protection. The GUI tool's "write config" step is
 rem what killed two chips, so prefer this for day to day flashing.
 
 set TOOL=D:\Keyboard_Frame\WCHISPTool\WCHISPTool_CH54x-55x\ispprog\ispprog.exe
+
+rem Default firmware lives in firmware\release\. Path is relative to this
+rem script, so the repo can be moved anywhere.
 set HEX=%~1
-if "%HEX%"=="" set HEX=D:\Codes\Keyboard\firmware\minekey_led.hex
+if "%HEX%"=="" set HEX=%~dp0..\firmware\release\minekey_led.hex
+
+rem Allow a bare file name: "flash_cli.bat minekey.hex"
+if not exist "%HEX%" if exist "%~dp0..\firmware\release\%HEX%" set HEX=%~dp0..\firmware\release\%HEX%
 
 if not exist "%TOOL%" (
   echo [X] programmer not found: %TOOL%
