@@ -438,7 +438,7 @@ static void mouse_move_tick(void)
         if (code_type(code) != T_MOVE) continue;
         held = 1;
         v = (uint8_t)(code & 0xFF);
-        step = (uint8_t)(MOVE_STEP << ((v >> 4) & 0x03));
+        step = (uint8_t)(MOVE_STEP + ((v >> 4) & 0x0F) * MOVE_STEP_INC);
         step = (uint8_t)(step * (move_taps ? move_taps : 1));
         if (step > MOVE_STEP_MAX) step = MOVE_STEP_MAX;
         switch ((uint8_t)(v & 0x0F)) {
@@ -452,7 +452,7 @@ static void mouse_move_tick(void)
     if (code_type(active_enc_push) == T_MOVE) {
         uint8_t v = (uint8_t)(active_enc_push & 0xFF);
         held = 1;
-        step = (uint8_t)(MOVE_STEP << ((v >> 4) & 0x03));
+        step = (uint8_t)(MOVE_STEP + ((v >> 4) & 0x0F) * MOVE_STEP_INC);
         step = (uint8_t)(step * (move_taps ? move_taps : 1));
         if (step > MOVE_STEP_MAX) step = MOVE_STEP_MAX;
         switch ((uint8_t)(v & 0x0F)) {
@@ -477,6 +477,41 @@ static void mouse_move_tick(void)
     buf[2] = dx;
     buf[3] = dy;
     buf[4] = 0;                 /* 不带滚轮 */
+    usb_ep1_send(buf, 5);
+}
+
+/* 鼠标滚轮长按连发。
+   按下沿那一格由 build_reports 立刻发出，这里只负责后续重复：
+   先等 WHEEL_DELAY_MS（避免刚按下就滚两格），之后每 WHEEL_PERIOD_MS 一格。 */
+static void mouse_wheel_tick(void)
+{
+    static uint16_t delay;
+    static uint8_t div;
+    uint8_t i, w = 0, buf[5];
+    uint16_t code;
+
+    for (i = 0; i < NUM_KEYS; i++) {
+        code = active_sw[i];
+        if (code_type(code) != T_MOUSE) continue;
+        if ((uint8_t)(code & 0xFF) == 4) w = 1;
+        else if ((uint8_t)(code & 0xFF) == 5) w = 2;
+    }
+    if (code_type(active_enc_push) == T_MOUSE) {
+        uint8_t v = (uint8_t)(active_enc_push & 0xFF);
+        if (v == 4) w = 1;
+        else if (v == 5) w = 2;
+    }
+
+    if (w == 0) { delay = 0; div = 0; return; }
+    if (delay < WHEEL_DELAY_MS) { delay++; return; }
+    if (++div < WHEEL_PERIOD_MS) return;
+    div = 0;
+
+    buf[0] = REP_MOUSE;
+    buf[1] = 0;
+    buf[2] = 0;
+    buf[3] = 0;
+    buf[4] = (w == 1) ? 1 : (uint8_t)-1;     /* 上滚 +1 / 下滚 -1 */
     usb_ep1_send(buf, 5);
 }
 
@@ -1106,6 +1141,7 @@ void app_tick(void)
     keys_update();
     encoder_dispatch();
     mouse_move_tick();
+    mouse_wheel_tick();
     build_reports();
 
     /* 主机动作触发报文（ID 5），只发一次。

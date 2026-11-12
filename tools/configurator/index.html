@@ -96,6 +96,13 @@
             <select id="keyValue"></select>
           </label>
 
+          <div class="field" id="moveSpeedField" hidden>
+            <span>灵敏度 <b id="moveSpeedVal">—</b></span>
+            <input type="range" id="moveSpeed" min="0" max="15" value="0">
+            <p class="note tiny">只在选「光标 ↑ ↓ ← →」时出现。数值 = 每 20 ms 移动的像素数；
+              按住时快速双击 ×2、三击 ×3 再提速。</p>
+          </div>
+
           <div class="field" id="comboField" hidden>
             <span>修饰键</span>
             <div class="chip-row" id="comboMods">

@@ -114,19 +114,16 @@ const MOUSE = [
   [4, '滚轮上滚'], [5, '滚轮下滚']
 ];
 
-/* 光标相对移动：低字节 = (档位 << 4) | 方向
- *   档位 0/1/2 → 6 / 12 / 24 px 每 20ms（300 / 600 / 1200 px/s）
- *   再叠加快捷点击倍率：快速双击 ×2、三击 ×3（固件 mouse_move_tick 里做）
- *   老的 0x0701..0x0704 就是档位 0，向后兼容。
+/* 光标相对移动：这里只列方向，速度由「灵敏度」滑杆调。
+ * 低字节 = (档位 << 4) | 方向，像素 = 6 + 档位×2（6..36 px 每 20ms，300..1800 px/s）
+ * 老的 0x0701..0x0704 就是档位 0，向后兼容。
  */
-const MOVE_DIRS = [[1, '↑'], [2, '↓'], [3, '←'], [4, '→']];
-const MOVE_LEVELS = [[0, ''], [1, ' · 快'], [2, ' · 极快']];
-const MOVES = [];
-MOVE_LEVELS.forEach(([lv, suffix]) => {
-  MOVE_DIRS.forEach(([dir, arrow]) => {
-    MOVES.push([(lv << 4) | dir, '光标 ' + arrow + suffix]);
-  });
-});
+const MOVES = [[1, '光标 ↑'], [2, '光标 ↓'], [3, '光标 ←'], [4, '光标 →']];
+
+const MOVE_PX_MIN = 6, MOVE_PX_INC = 2;
+const movePx = lv => MOVE_PX_MIN + lv * MOVE_PX_INC;
+const moveLv = code => (code >> 4) & 0x0F;
+const moveLabel = lv => `${movePx(lv)} px/20ms · ${movePx(lv) * 50} px/s`;
 
 /* 鼠标与光标合并成一组：类型下拉里只留一个"鼠标与光标"，
    值列表里按钮/滚轮（0x03xx）和相对移动（0x07xx）混排。
@@ -720,10 +717,21 @@ function renderSidebar() {
   } else {
     const rawType = codeType(code);
     const isPointer = (rawType === T_MOUSE || rawType === T_MOVE);
+    const isMove = (rawType === T_MOVE);
     $('#keyType').value = isPointer ? T_POINTER : rawType;
-    fillValueSelect(isPointer ? T_POINTER : rawType, isPointer ? code : codeValue(code));
+    /* 光标码要剥掉速度档位再去找选项，否则 0x0721 匹配不到「光标 ↑」 */
+    const selVal = isPointer ? (isMove ? (code & 0xFF0F) : code) : codeValue(code);
+    fillValueSelect(isPointer ? T_POINTER : rawType, selVal);
     $('#keyRaw').value = hex(code);
     syncComboUI(code);
+
+    /* 只有光标类按键才显示灵敏度滑杆 */
+    $('#moveSpeedField').hidden = !isMove;
+    if (isMove) {
+      const lv = moveLv(code);
+      $('#moveSpeed').value = lv;
+      $('#moveSpeedVal').textContent = moveLabel(lv);
+    }
   }
 
   // 灯光页的全局参数
@@ -1202,6 +1210,17 @@ function bind() {
     if (t === T_NONE) $('#keyRaw').value = '0x0000';
   });
 
+  /* 光标灵敏度：拖动时只更新文字，松手（change）才写进设备，避免一路拖一路存 */
+  $('#moveSpeed').addEventListener('input', e => {
+    $('#moveSpeedVal').textContent = moveLabel(+e.target.value);
+  });
+  $('#moveSpeed').addEventListener('change', async e => {
+    const lv = +e.target.value;
+    const cur = S.keys[S.selected];
+    if (codeType(cur) !== T_MOVE) return;
+    await writeCurrent((cur & 0xFF0F) | (lv << 4));   /* 保留方向，只换档位 */
+  });
+
   // 写入此键
   $('#btnAssign').addEventListener('click', async () => {
     const t = +$('#keyType').value;
@@ -1216,6 +1235,11 @@ function bind() {
       code = (0x0600 | (v & 0xFF)) & 0xFFFF;
     } else if (t === T_POINTER) {
       code = v & 0xFFFF;                    /* 值列表里已经是完整功能码（0x03xx / 0x07xx） */
+      /* 换方向时把原来的灵敏度档位带上，否则一改方向速度就被打回默认 */
+      if ((code & 0xFF00) === (T_MOVE << 8)) {
+        const cur = S.keys[S.selected] || 0;
+        if (codeType(cur) === T_MOVE) code = (code & 0xFF0F) | (cur & 0x00F0);
+      }
     } else code = ((t << 8) | (v & 0xFF)) & 0xFFFF;
     await writeCurrent(code);
   });
