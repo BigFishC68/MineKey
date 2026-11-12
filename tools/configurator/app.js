@@ -17,7 +17,8 @@ const R_KBD = 0x01, R_CONSUMER = 0x02, R_STATUS = 0x03;
 const CMD = {
   INFO: 0x01, GET_KEYMAP: 0x02, SET_KEY: 0x03, SET_ALL_KEYS: 0x04,
   GET_ENC: 0x05, SET_ENC: 0x06, GET_LED: 0x07, SET_LED: 0x08,
-  SAVE: 0x09, FACTORY_RESET: 0x0A, BOOTLOADER: 0x0B
+  SAVE: 0x09, FACTORY_RESET: 0x0A, BOOTLOADER: 0x0B,
+  GET_MOVE: 0x0C, SET_MOVE: 0x0D
 };
 
 /* ===================== 物理布局 =====================
@@ -171,6 +172,7 @@ const S = {
     r: 0xF7, g: 0x76, b: 0x34,
     perKey: Array.from({ length: NLEDS }, () => ({ r: 0xF7, g: 0x76, b: 0x34 }))
   },
+  moveTap: 20,          // 光标连击窗口（20ms 为单位），全局设置
   selected: 0,          // 0..10 = 键，11 = 旋钮（按下）
   selIsKnob: false,
   pressed: new Set(),
@@ -454,8 +456,15 @@ class Device {
       const o = 8 + n * 3;
       led.perKey.push({ r: l[o], g: l[o + 1], b: l[o + 2] });
     }
+    /* 连击窗口存在配置结构体之外，单独一条命令读 */
+    let moveTap = 20;
+    try {
+      const mv = await this._cmd([CMD.GET_MOVE]);
+      if (mv && mv[2] >= 2 && mv[2] <= 50) moveTap = mv[2];
+    } catch (_) { /* 老固件没有这条命令，用默认值 */ }
+
     this.infoCache = info;
-    return { info, keys, enc, led };
+    return { info, keys, enc, led, moveTap };
   }
 
   /* ---- 自动落盘 ----
@@ -499,6 +508,11 @@ class Device {
     }
     await this._cmd(p);
     this._scheduleSave();
+  }
+
+  async writeMoveTap(ticks) {
+    if (this.demo) return;
+    await this._cmd([CMD.SET_MOVE, ticks & 0xFF]);
   }
 
   async save() {
@@ -725,12 +739,15 @@ function renderSidebar() {
     $('#keyRaw').value = hex(code);
     syncComboUI(code);
 
-    /* 只有光标类按键才显示灵敏度滑杆 */
+    /* 只有光标类按键才显示灵敏度和连击窗口 */
     $('#moveSpeedField').hidden = !isMove;
+    $('#moveTapField').hidden = !isMove;
     if (isMove) {
       const lv = moveLv(code);
       $('#moveSpeed').value = lv;
       $('#moveSpeedVal').textContent = moveLabel(lv);
+      $('#moveTap').value = S.moveTap;
+      $('#moveTapVal').textContent = (S.moveTap * 20) + ' ms';
     }
   }
 
@@ -1141,6 +1158,7 @@ async function loadAll() {
     S.keys = all.keys;
     Object.assign(S.enc, all.enc);
     S.led = all.led;
+    if (all.moveTap) S.moveTap = all.moveTap;
     renderDevice();
     renderBoard();
     renderSidebar();
@@ -1219,6 +1237,19 @@ function bind() {
     const cur = S.keys[S.selected];
     if (codeType(cur) !== T_MOVE) return;
     await writeCurrent((cur & 0xFF0F) | (lv << 4));   /* 保留方向，只换档位 */
+  });
+
+  /* 连击窗口：全局设置，直接写进设备的独立配置字节 */
+  $('#moveTap').addEventListener('input', e => {
+    $('#moveTapVal').textContent = (+e.target.value * 20) + ' ms';
+  });
+  $('#moveTap').addEventListener('change', async e => {
+    const v = +e.target.value;
+    S.moveTap = v;
+    try {
+      await dev.writeMoveTap(v);
+      log(`连击窗口已设为 ${v * 20} ms`, 'tx');
+    } catch (err) { log('写入失败：' + err.message, 'err'); }
   });
 
   // 写入此键

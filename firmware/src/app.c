@@ -46,6 +46,12 @@ static __xdata uint8_t  move_edge;             /* 有 T_MOVE 键新按下（按�
 static __xdata uint8_t  move_taps;             /* 连击次数 1..3 → 倍率 */
 static __xdata uint8_t  move_gap;              /* 松手后经过的 20ms 拍数 */
 
+/* 连击判定窗口（单位 20ms），可在配置器里调。
+   存在 DataFlash 第 95 号字节 —— 在 keyboard_config_t 之外，
+   这样以后增删这个设置不会改变 sizeof(cfg)，老配置不会失效。 */
+#define MOVE_CFG_OFFSET  95
+static __xdata uint8_t  move_tap_window = MOVE_TAP_WINDOW;
+
 static __xdata uint8_t last_kbd[8];
 static __xdata uint16_t last_media;
 static __xdata uint8_t last_mouse[4];
@@ -424,7 +430,7 @@ static void mouse_move_tick(void)
     /* ---- 连击判定：这一拍里只要有一个移动键刚按下就算一次"点" ---- */
     if (move_edge) {
         move_edge = 0;
-        if (move_gap <= MOVE_TAP_WINDOW) {
+        if (move_gap <= move_tap_window) {
             if (move_taps < 3) move_taps++;
         } else {
             move_taps = 1;
@@ -467,7 +473,7 @@ static void mouse_move_tick(void)
     /* 没按着移动键就累计"松手时间"，超过窗口连击清零 */
     if (!held) {
         if (move_gap < 255) move_gap++;
-        if (move_gap > MOVE_TAP_WINDOW) move_taps = 0;
+        if (move_gap > move_tap_window) move_taps = 0;
     }
 
     if (dx == 0 && dy == 0) return;
@@ -642,8 +648,15 @@ static void keys_update(void)
                     active_sw[k] = code;
                 } else if (code != 0) {
                     active_sw[k] = code;
-                    /* 移动键的按下沿交给 mouse_move_tick 做连击判定 */
-                    if (code_type(code) == T_MOVE) move_edge = 1;
+                    /* 只有"手上没按住别的移动键"时才算一次点击：
+                       否则上+右一起按（斜着走）会被当成双击，速度莫名翻倍 */
+                    if (code_type(code) == T_MOVE) {
+                        uint8_t j, other = 0;
+                        for (j = 0; j < NUM_KEYS; j++) {
+                            if (j != k && code_type(active_sw[j]) == T_MOVE) { other = 1; break; }
+                        }
+                        if (!other) move_edge = 1;
+                    }
                 }
             }
         } else {
@@ -941,6 +954,8 @@ static void led_effect(void)
 #define CMD_SET_ENC     0x06
 #define CMD_GET_LED     0x07
 #define CMD_SET_LED     0x08
+#define CMD_GET_MOVE    0x0C      /* 读光标连击窗口 */
+#define CMD_SET_MOVE    0x0D      /* 写光标连击窗口（20ms 为单位，2..50） */
 #define CMD_SAVE        0x09
 #define CMD_FACTORY     0x0A
 #define CMD_BOOTLOADER  0x0B
@@ -1030,6 +1045,22 @@ void app_feature(const uint8_t *in, uint8_t *out)
         }
         break;
 
+    case CMD_GET_MOVE:
+        out[2] = move_tap_window;
+        break;
+
+    case CMD_SET_MOVE:
+        {
+            uint8_t w = in[1];
+            if (w < 2) w = 2;
+            if (w > 50) w = 50;
+            move_tap_window = w;
+            EA_DISABLE();
+            df_write(MOVE_CFG_OFFSET, w);     /* 存在 cfg 之外，不受整块写影响 */
+            EA_ENABLE();
+        }
+        break;
+
     case CMD_SAVE:
         save_pending = 1;                        /* 真正写 Flash 在主循环做 */
         break;
@@ -1103,6 +1134,10 @@ void app_init(void)
 
     gpio_init();
     cfg_load();
+
+    /* 连击窗口存在配置结构体之外，非法值回落到默认 */
+    move_tap_window = df_read(MOVE_CFG_OFFSET);
+    if (move_tap_window < 2 || move_tap_window > 50) move_tap_window = MOVE_TAP_WINDOW;
 
     enc_prev = (uint8_t)((ENC_A_PIN ? 2 : 0) | (ENC_B_PIN ? 1 : 0));
     enc_acc = 0;

@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MineKey</title>
-<link rel="stylesheet" href="styles.css">
+<!-- ?v= 用于破 WebView2 的缓存：改了前端记得同步改这个版本号 -->
+<link rel="stylesheet" href="styles.css?v=20261112a">
 </head>
 <body>
 
@@ -101,6 +102,13 @@
             <input type="range" id="moveSpeed" min="0" max="15" value="0">
             <p class="note tiny">只在选「光标 ↑ ↓ ← →」时出现。数值 = 每 20 ms 移动的像素数；
               按住时快速双击 ×2、三击 ×3 再提速。</p>
+          </div>
+
+          <div class="field" id="moveTapField" hidden>
+            <span>连击窗口 <b id="moveTapVal">400 ms</b></span>
+            <input type="range" id="moveTap" min="5" max="40" value="20">
+            <p class="note tiny">双击/三击提速的判定间隔（全局，所有光标键共用）。
+              手快就调小；上下左右一起按容易被误判成双击，就调大。</p>
           </div>
 
           <div class="field" id="comboField" hidden>
@@ -324,6 +332,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js"></script>
+<script src="app.js?v=20261112a"></script>
 </body>
 </html>
