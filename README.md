@@ -93,7 +93,7 @@ Keyboard/
 │   ├── Keyboard.epro2          嘉立创 EDA 工程
 │   ├── keyboard.png            板图
 │   └── CH552DS1.PDF            WCH 官方手册
-└── assets/                     图标源文件
+└── assets/                     应用图标 + 界面截图
 ```
 
 ---

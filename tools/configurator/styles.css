@@ -167,21 +167,11 @@ input[type="range"]::-webkit-slider-thumb {
 
 .brand { display: flex; align-items: center; gap: 10px; }
 
-.logo-block {
-  width: 34px; height: 34px;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  gap: 1px;
-  padding: 2px;
-  background: #000;
-  box-shadow: inset 2px 2px 0 rgba(255,255,255,.18);
-}
-.logo-block i { display: block; background: var(--grass); }
-.logo-block i:nth-child(1) { background: var(--grass-hi); }
-.logo-block i:nth-child(2) { background: var(--grass); }
-.logo-block i:nth-child(3) { background: #355c24; }
-.logo-block b { display: block; grid-column: 1 / -1; background: var(--diamond); height: 5px; margin-top: 2px; }
+.logo { width: 34px; height: 34px; flex: 0 0 auto; }
+.logo svg { display: block; }
+.logo .lg-keys rect { fill: var(--grass); }
+.logo .lg-knob { fill: var(--diamond); }
+.logo .lg-dot { fill: #141414; }
 
 .brand-text h1 {
   font-family: var(--mono);
