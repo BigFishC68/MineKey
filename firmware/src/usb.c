@@ -94,14 +94,14 @@ __code const uint8_t ReportDesc[] = {
     0xA1, 0x00,             /*   Collection (Physical) */
     0x05, 0x09,             /*     Usage Page (Button) */
     0x19, 0x01,             /*     Usage Min (1) */
-    0x29, 0x03,             /*     Usage Max (3) */
+    0x29, 0x05,             /*     Usage Max (5) 5 个按键：左右中 + 两个侧键 */
     0x15, 0x00,             /*     Logical Min (0) */
     0x25, 0x01,             /*     Logical Max (1) */
-    0x95, 0x03,             /*     Report Count (3) */
+    0x95, 0x05,             /*     Report Count (5) */
     0x75, 0x01,             /*     Report Size (1) */
-    0x81, 0x02,             /*     Input (Data,Var,Abs) */
+    0x81, 0x02,             /*     Input (Data,Var,Abs) 每键 1 位 */
     0x95, 0x01,             /*     Report Count (1) */
-    0x75, 0x05,             /*     Report Size (5) 补齐 */
+    0x75, 0x03,             /*     Report Size (3) 补齐到 1 字节 */
     0x81, 0x01,             /*     Input (Const) */
     0x05, 0x01,             /*     Usage Page (Generic Desktop) */
     0x09, 0x30,             /*     Usage (X) */

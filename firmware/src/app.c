@@ -398,6 +398,8 @@ static void apply_code(uint16_t code, uint8_t *mods, uint8_t *keys, uint8_t *n,
         if (v >= 1 && v <= 3) mouse[0] |= (uint8_t)(1u << (v - 1));
         else if (v == 4) mouse[3] = 1;
         else if (v == 5) mouse[3] = (uint8_t)-1;
+        else if (v == 6) mouse[0] |= 0x08;          /* Btn4 后退 */
+        else if (v == 7) mouse[0] |= 0x10;          /* Btn5 前进 */
         break;
     case T_MOVE:
         /* 相对移动必须"每次按下都发一包"，不能走 build_reports 的变化检测，
@@ -408,10 +410,36 @@ static void apply_code(uint16_t code, uint8_t *mods, uint8_t *keys, uint8_t *n,
     }
 }
 
+/* 当前按着的鼠标键（HID 按钮位图：bit0 左 bit1 右 bit2 中，bit3 后退 bit4 前进）。
+   移动和滚轮报文必须带上它，否则发一包 buttons=0 就等于把键松开了 ——
+   表现就是"按住左键拖不动"。
+   v=4/5 是滚轮，不是按钮，别映射成位。 */
+static uint8_t mouse_buttons(void)
+{
+    uint8_t i, b = 0, v;
+    uint16_t code;
+
+    for (i = 0; i < NUM_KEYS; i++) {
+        code = active_sw[i];
+        if (code_type(code) != T_MOUSE) continue;
+        v = (uint8_t)(code & 0xFF);
+        if (v >= 1 && v <= 3) b |= (uint8_t)(1u << (v - 1));
+        else if (v == 6) b |= 0x08;
+        else if (v == 7) b |= 0x10;
+    }
+    if (code_type(active_enc_push) == T_MOUSE) {
+        v = (uint8_t)(active_enc_push & 0xFF);
+        if (v >= 1 && v <= 3) b |= (uint8_t)(1u << (v - 1));
+        else if (v == 6) b |= 0x08;
+        else if (v == 7) b |= 0x10;
+    }
+    return b;
+}
+
 /* 鼠标相对移动：按住期间每 MOVE_PERIOD_MS 发一包 [buttons, dx, dy, wheel]。
    X/Y 在 HID 里是有符号字节，往左/上是负数，直接按补码写进 uint8_t 即可。
 
-   速度 = MOVE_STEP << 档位，再乘连击倍率：
+   速度 = (MOVE_STEP + 档位×MOVE_STEP_INC) × 连击倍率：
      单击后按住    ×1（默认手感）
      快速双击后按住 ×2
      快速三击后按住 ×3
@@ -479,7 +507,7 @@ static void mouse_move_tick(void)
     if (dx == 0 && dy == 0) return;
 
     buf[0] = REP_MOUSE;
-    buf[1] = 0;                 /* 不带按键 */
+    buf[1] = mouse_buttons();   /* 带上当前按着的鼠标键，否则拖拽会被打断 */
     buf[2] = dx;
     buf[3] = dy;
     buf[4] = 0;                 /* 不带滚轮 */
@@ -514,7 +542,7 @@ static void mouse_wheel_tick(void)
     div = 0;
 
     buf[0] = REP_MOUSE;
-    buf[1] = 0;
+    buf[1] = mouse_buttons();   /* 带上当前按着的鼠标键，否则拖拽会被打断 */
     buf[2] = 0;
     buf[3] = 0;
     buf[4] = (w == 1) ? 1 : (uint8_t)-1;     /* 上滚 +1 / 下滚 -1 */
