@@ -167,11 +167,13 @@ input[type="range"]::-webkit-slider-thumb {
 
 .brand { display: flex; align-items: center; gap: 10px; }
 
-.logo { width: 34px; height: 34px; flex: 0 0 auto; }
-.logo svg { display: block; }
-.logo .lg-keys rect { fill: var(--grass); }
-.logo .lg-knob { fill: var(--diamond); }
-.logo .lg-dot { fill: #141414; }
+.logo {
+  width: 34px; height: 34px;
+  flex: 0 0 auto; display: block;
+  border-radius: 5px;
+  object-fit: cover;
+  image-rendering: auto;
+}
 
 .brand-text h1 {
   font-family: var(--mono);
