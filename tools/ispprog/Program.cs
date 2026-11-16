@@ -42,13 +42,18 @@ class Program
         opt.IsBootLoader = 1;        // 从 BOOT 启动
         opt.IsMcuResetAfterIsp = 1;  // 下载后复位运行
         opt.IsEnableResetPin = 1;
-        opt.IsEnableLongRest = 1;
-        opt.IsEraseAllCFlash = 1;
-        opt.IsCodeProtect = 1;       // 默认：与工具一致
+        /* 下面三项必须和 GUI 已验证可用的配置一致（见 GUI.INI）：
+           IsEnableLongRest / IsEraseAllCFlash 都是配置位相关字段，
+           一旦和芯片当前值不同，DLL 就会顺带写配置位 —— 正是 GUI
+           报「配置位校验失败」的那一步。之前这里写成 1，等于把 GUI
+           的坑又踩了一遍。 */
+        opt.IsEnableLongRest = 0;
+        opt.IsEraseAllCFlash = 0;
+        opt.IsCodeProtect = 1;       // 1=启用代码保护，默认与 GUI 一致
 
         if (mode == "noprotect")
         {
-            // 关键：不写保护位。芯片当前已是保护态，写它必然失败并导致整个下载中止。
+            // IsCodeProtect: 1=启用代码保护 0=不启用。烧自己的板子当然选 0。
             opt.IsCodeProtect = 0;
         }
 
