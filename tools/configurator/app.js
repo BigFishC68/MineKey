@@ -516,6 +516,23 @@ class Device {
     await this._cmd([CMD.SET_MOVE, ticks & 0xFF]);
   }
 
+  /* 整份下发：导入配置后一次性写进设备。
+     固件没有批量命令（0x04 没实现），就逐个 SET_KEY，11 条约 20ms 的事。
+     写完立刻 SAVE 并清掉去抖定时器，避免重复落盘。 */
+  async writeAll(keys, enc, led) {
+    if (this.demo) {
+      if (keys) S.keys = keys.slice();
+      if (enc) Object.assign(S.enc, enc);
+      if (led) S.led = JSON.parse(JSON.stringify(led));
+      return;
+    }
+    if (keys) for (let i = 0; i < NKEYS; i++) await this.writeKey(i, keys[i] || 0);
+    if (enc) await this.writeEnc(enc);
+    if (led) await this.writeLed(led);
+    clearTimeout(this._saveTimer);
+    await this.save();
+  }
+
   async save() {
     if (this.demo) { log('（演示）配置已写入本地', 'ok'); return; }
     await this._cmd([CMD.SAVE]);
@@ -1450,7 +1467,7 @@ function bind() {
     const data = {
       version: 1, created: new Date().toISOString(),
       layout: 'ch552-11key-ec11',
-      keys: S.keys.map(hex),
+      keys: S.keys.map(c => hex(c)),
       enc: { cw: hex(S.enc.cw), ccw: hex(S.enc.ccw), push: hex(S.enc.push), invert: S.enc.invert },
       led: {
         mode: S.led.mode, brightness: S.led.brightness, speed: S.led.speed,
@@ -1464,20 +1481,24 @@ function bind() {
     toast('配置已保存');
   });
 
+  /* 导出成能直接粘进 board.h 的形式（之前生成的 DEFAULT_KEYMAP 宏固件里根本不存在） */
   $('#btnExportC').addEventListener('click', async () => {
-    let s = '/* 由 MineKey 配置器生成 —— 粘贴到 firmware/src/config.h */\n';
-    s += '#define DEFAULT_KEYMAP { \\\n  ';
-    s += S.keys.map(c => hex(c)).join(', ') + ' \\\n}\n\n';
-    s += '#define DEFAULT_ENC { \\\n  ';
-    s += `${hex(S.enc.cw)}, ${hex(S.enc.ccw)}, ${hex(S.enc.push)}, ${S.enc.invert} \\\n}\n\n`;
-    s += '#define DEFAULT_LED_MODE       ' + S.led.mode + '\n';
-    s += '#define DEFAULT_LED_BRIGHTNESS ' + S.led.brightness + '\n';
-    s += '#define DEFAULT_LED_RGB        { ' +
-         [S.led.r, S.led.g, S.led.b].map(v => '0x' + v.toString(16).padStart(2, '0').toUpperCase()).join(', ') + ' }\n';
-    const path = await saveText('keymap_default.h', s, 'h');
+    const rgb = [S.led.r, S.led.g, S.led.b].map(v => '0x' + v.toString(16).toUpperCase().padStart(2, '0'));
+    const k = S.keys.map(c => hex(c));
+    const rows = [];
+    for (let i = 0; i < k.length; i += 4) rows.push('    ' + k.slice(i, i + 4).join(', '));
+    let out = '/* 由 MineKey 配置器生成：替换 firmware/src/board.h 里的同名表 */' + String.fromCharCode(10) + String.fromCharCode(10);
+    out += 'static __code const uint16_t DEF_KEYS[NUM_KEYS] = {' + String.fromCharCode(10) + rows.join(',' + String.fromCharCode(10)) + String.fromCharCode(10) + '};' + String.fromCharCode(10) + String.fromCharCode(10);
+    out += `static __code const uint16_t DEF_ENC[3] = { ${hex(S.enc.cw)}, ${hex(S.enc.ccw)}, ${hex(S.enc.push)} };` + String.fromCharCode(10) + String.fromCharCode(10);
+    out += '/* cfg_defaults() 里的灯效默认值：' + String.fromCharCode(10);
+    out += `   cfg.led_mode   = ${S.led.mode};` + String.fromCharCode(10);
+    out += `   cfg.led_bright = ${S.led.brightness};` + String.fromCharCode(10);
+    out += `   cfg.led_speed  = ${S.led.speed};` + String.fromCharCode(10);
+    out += `   cfg.led_rgb[0..2] = { ${rgb.join(', ')} };   */` + String.fromCharCode(10);
+    const path = await saveText('keymap_default.h', out, 'h');
     if (!path) return;
     log(`已导出固件默认表：${path}`, 'ok');
-    toast('keymap_default.h 已保存');
+    toast('已保存，可直接替换 board.h 里的 DEF_KEYS / DEF_ENC');
   });
 
   $('#fileImport').addEventListener('change', async e => {
@@ -1486,7 +1507,14 @@ function bind() {
     try {
       const txt = await f.text();
       applyProfile(JSON.parse(txt));
-      toast('配置已导入');
+      /* 导入必须真的落到设备上：以前只改内存和界面，键盘根本没变 */
+      if (S.online) {
+        await dev.writeAll(S.keys.slice(), { ...S.enc }, JSON.parse(JSON.stringify(S.led)));
+        log('导入的配置已写入设备并保存', 'ok');
+        toast('已导入并写入设备');
+      } else {
+        toast('已导入（未连接设备，尚未写入）', true);
+      }
     } catch (err) { toast('文件解析失败', true); log('导入失败：' + err.message, 'err'); }
     e.target.value = '';
   });
@@ -1521,7 +1549,16 @@ function parseCode(str) {
 }
 
 function applyProfile(p) {
-  if (p.keys) S.keys = p.keys.map(v => typeof v === 'string' ? parseCode(v) : v);
+  /* 只接受能解析的项：老版本导出的文件里有无效码（0x000000012A 这种），
+     以前会把整组键位写成 null，界面直接乱掉 */
+  if (Array.isArray(p.keys)) {
+    S.keys = S.keys.slice();
+    p.keys.forEach((v, i) => {
+      if (i >= NKEYS) return;
+      const c = typeof v === 'string' ? parseCode(v) : v;
+      if (typeof c === 'number' && isFinite(c) && c >= 0 && c <= 0xFFFF) S.keys[i] = c;
+    });
+  }
   if (p.enc) {
     S.enc.cw = parseCode(p.enc.cw); S.enc.ccw = parseCode(p.enc.ccw);
     S.enc.push = parseCode(p.enc.push); S.enc.invert = p.enc.invert | 0;
