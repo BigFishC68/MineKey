@@ -27,6 +27,7 @@
     <Content Include="..\configurator\index.html" Link="www\index.html" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\styles.css" Link="www\styles.css" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\app.js" Link="www\app.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\configurator\logo.jpg" Link="www\logo.jpg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\fonts\zpix.ttf" Link="www\fonts\zpix.ttf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
