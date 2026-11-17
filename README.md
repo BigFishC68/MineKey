@@ -3,7 +3,7 @@
 > 一颗 CH552G，做成一把能自定义键位、带 11 颗 WS2812、能在电脑上改键的机械键盘。
 > 原理图、固件、配置器、主机动作代理齐全，**已全部在真机跑通**（USB 枚举 / 按键 / 灯光 / 改键 / 落盘均实测）。
 
-![板图](hardware/keyboard.png)
+![原理图](hardware/keyboard_SCH.jpg)
 
 ---
 
@@ -41,6 +41,10 @@
 | 接口 | USB 2.0 全速，D+ = P3.6，D− = P3.7（内部 1.5 k 上拉，无需外部电阻） |
 
 引脚表见 `firmware/src/board.h` 顶部注释；改板核对记录见 `docs/01-原理图审查.md`。
+
+**外壳与键帽**：`hardware/keyboard-Body.step`（主体）、`hardware/keyboard-CAP.step`（单键）、
+`hardware/keyboard-CAP-full.step`（全套 11 颗）均为 FreeCAD 导出的 STEP，可直接导入切片软件打印。
+原理图源工程是 `hardware/keyboard_v1.epro2`（嘉立创 EDA），图片版 `hardware/keyboard_SCH.jpg`。
 
 **接线映射（踩过坑，勿随意改）**：`ROW1 = 上排`、`ROW3 = 下排`，`COL1..COL4` 左→右。
 灯珠串联是蛇形：`CN11 → CN10 → CN9 → CN5 → CN6 → CN7 → CN8 → CN4 → CN3 → CN2 → CN1`。
@@ -89,10 +93,12 @@ Keyboard/
 │   ├── 03-使用说明.md          面向使用者的完整说明
 │   └── 04-固件校验报告.md      每版固件的校验数据 + 真机调试过程
 ├── hardware/
-│   ├── Keyboard_sch.pdf        原理图
-│   ├── Keyboard.epro2          嘉立创 EDA 工程
-│   ├── keyboard.png            板图
-│   └── CH552DS1.PDF            WCH 官方手册
+│   ├── keyboard_SCH.jpg        原理图（CH552G + 3×4 矩阵 + 11×WS2812 + EC11 + Type-C）
+│   ├── keyboard_v1.epro2       嘉立创 EDA 工程（v1，可直接打开改板）
+│   ├── keyboard-Body.step      外壳主体 3D 模型（FreeCAD 导出，可打印）
+│   ├── keyboard-CAP.step       单颗键帽模型
+│   ├── keyboard-CAP-full.step  全套键帽（11 颗）
+│   └── CH552DS1.PDF            WCH 官方数据手册
 └── assets/                     应用图标 + 界面截图
 ```
 
