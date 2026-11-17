@@ -22,11 +22,12 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4314.35" />
   </ItemGroup>
 
-  <!-- UI 只有一份源码：直接引用 ../configurator 下的三个文件 -->
+  <!-- UI 只有一份源码：直接引用 ../configurator 下的文件 -->
   <ItemGroup>
     <Content Include="..\configurator\index.html" Link="www\index.html" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\styles.css" Link="www\styles.css" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\app.js" Link="www\app.js" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\configurator\logo.jpg" Link="www\logo.jpg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\configurator\fonts\zpix.ttf" Link="www\fonts\zpix.ttf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
