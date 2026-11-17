@@ -1,22 +1,12 @@
 # ---------- 构建产物（可由源码重新生成，不入库） ----------
-firmware/build/
-firmware/build_diag/
-firmware/*.asm
-firmware/*.lst
-firmware/*.map
-firmware/*.mem
-firmware/*.rel
-firmware/*.rst
-firmware/*.sym
-firmware/*.lk
-firmware/*.ihx
-firmware/build_log.txt
-firmware/build_noled.log
-
 tools/configurator-win/bin/
 tools/configurator-win/obj/
-tools/ispprog/bin/
-tools/ispprog/obj/
+tools/configurator-win/dist/
+
+# ---------- 本分支不含的目录（本地残留也不要误提交） ----------
+firmware/
+hardware/
+tools/ispprog/
 
 # ---------- Python ----------
 __pycache__/
