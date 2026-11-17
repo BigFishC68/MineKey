@@ -167,13 +167,39 @@ static class Program
     }
 
     static async Task InitAsync()
-    {        string www = Path.Combine(AppContext.BaseDirectory, "www");
+    {
+        /* 分发时最常见的两个坑，这里直接给出人话提示，别让用户对着白窗口猜： */
+        string www = Path.Combine(AppContext.BaseDirectory, "www");
+        if (!File.Exists(Path.Combine(www, "index.html")))
+        {
+            MessageBox.Show(
+                "缺少 www 文件夹。\n\nMineKey.exe 必须和 www 文件夹放在同一目录，" +
+                "解压后整个 MineKey-v1.3 文件夹一起使用，不要只拷 exe。\n\n" +
+                "当前目录：" + AppContext.BaseDirectory,
+                "MineKey 启动失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Environment.Exit(1);
+        }
         string udf = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MineKey", "WebView2");
         Directory.CreateDirectory(udf);
 
-        var env = await CoreWebView2Environment.CreateAsync(null, udf);
-        await web!.EnsureCoreWebView2Async(env);
+        CoreWebView2Environment env;
+        try
+        {
+            env = await CoreWebView2Environment.CreateAsync(null, udf);
+            await web!.EnsureCoreWebView2Async(env);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                "WebView2 运行时未安装，界面无法加载。\n\n" +
+                "装一次即可（约 2 MB）：\n" +
+                "https://developer.microsoft.com/microsoft-edge/webview2/\n\n" +
+                "详细错误：" + ex.Message,
+                "MineKey 启动失败", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Environment.Exit(1);
+            return;
+        }
 
         var core = web.CoreWebView2;
         core.SetVirtualHostNameToFolderMapping(HostName, www, CoreWebView2HostResourceAccessKind.Allow);
