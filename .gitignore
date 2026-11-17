@@ -13,10 +13,19 @@ firmware/*.ihx
 firmware/build_log.txt
 firmware/build_noled.log
 
-tools/configurator-win/bin/
-tools/configurator-win/obj/
 tools/ispprog/bin/
 tools/ispprog/obj/
+
+# ---------- 本分支不含的软件目录（本地残留也不要误提交） ----------
+assets/
+tools/configurator/
+tools/configurator-win/
+tools/host-agent/
+tools/set_keymap.py
+tools/set_led.py
+tools/hidtest.ps1
+MineKey.bat
+docs/03-使用说明.md
 
 # ---------- Python ----------
 __pycache__/
@@ -26,7 +35,10 @@ __pycache__/
 # ---------- 本地产物 / 日志 ----------
 *.log
 *.tmp
-tools/t.bin
+
+# 用户导出的配置档（含个人键位，不入库）
+mouse_model.json
+*-profile.json
 
 # ---------- 编辑器 / 系统 ----------
 .workbuddy/
@@ -35,11 +47,3 @@ tools/t.bin
 Thumbs.db
 desktop.ini
 .DS_Store
-
-# 主机动作表：每台机器自己一份，仓库里只放示例
-tools/host-agent/actions.json
-tools/host-agent/agent.log
-
-# 用户导出的配置档（含个人键位，不入库）
-mouse_model.json
-*-profile.json
