@@ -21,3 +21,6 @@
 *.psd    binary
 *.ttf    binary
 *.epro2  binary
+
+*.step   binary
+*.stp    binary
