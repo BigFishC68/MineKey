@@ -291,6 +291,12 @@ static void ep0_setup(void)
             case 0x03:
                 ep0_send_string(wValue & 0xFF, wLength);
                 break;
+            case 0x21:      /* HID 描述符（CfgDesc 里第 18 字节起，9 字节）。
+                               Win11 24H2 的 HidUsb 会单独请求这一条，
+                               STALL 的话驱动启动失败，设备管理器报 Code 10 /
+                               问题状态 0xC0000001。Win10 一般复用配置描述符里的那份，所以看不出来。 */
+                ep0_send_code(CfgDesc + 18, (wLength < 9) ? wLength : 9);
+                break;
             case 0x22:
                 ep0_send_code(ReportDesc, (wLength < sizeof(ReportDesc)) ? wLength : sizeof(ReportDesc));
                 break;
